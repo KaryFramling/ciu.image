@@ -2,6 +2,8 @@
 # https://cran.r-project.org/web/packages/keras/vignettes/index.html
 # https://towardsdatascience.com/interpretable-machine-learning-for-image-classification-with-lime-ea947e82ca13
 
+# Animals playing guitar and similar: https://w0286994blog.wordpress.com/
+
 # keras installation: https://cran.r-project.org/web/packages/keras/vignettes/index.html
 # install.packages("keras")
 # library(keras)
@@ -240,9 +242,10 @@ magick.tests <- function() {
 
 ciu_kitten <- function() {
   # Load image, write to local file.
-  img <- image_read('https://www.data-imaginist.com/assets/images/kitten.jpg')
-  img_path <- file.path(tempdir(), 'kitten.jpg')
-  image_write(img, img_path)
+  # img <- image_read('https://www.data-imaginist.com/assets/images/kitten.jpg')
+  # img_path <- file.path(tempdir(), 'kitten.jpg')
+  # image_write(img, img_path)
+  img_path <- 'kitten.jpg'
   ciu_image(img_path, c(1,2,3), n_superpixels=100)
 }
 
@@ -265,7 +268,8 @@ ciu_image <- function(imgpath, ind.out=1, threshold = 0.02, n_superpixels=50) {
       include_top = TRUE
     )
   # Create CIU object and get explanation.
-  ciu <- ciu.image.new(vgg16, vgg_predict_function)
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'lime'))
+  ciu <- ciu.image.new(vgg16, vgg_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=50,
                                       weight=20, n_iter=10, background = 'grey')
@@ -288,7 +292,8 @@ ciu_vgg19 <- function(imgpath, ind.out=1, threshold = 0.02) {
       include_top = TRUE
     )
   # Create CIU object and get explanation.
-  ciu <- ciu.image.new(vgg19, vgg_predict_function)
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'lime'))
+  ciu <- ciu.image.new(vgg19, vgg_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=50,
                                       weight=20, n_iter=10, background = 'grey')
@@ -305,8 +310,8 @@ ciu_DogGuitar_InceptionV3 <- function(ind.out=1, threshold = 0.02, n_superpixels
   imgpath <- 'LabradorPlayingGuitar_cropped.jpg'
   res <- predict(model, image_prep_inception_v3(imgpath))
   imagenet_decode_predictions(res)
-  #model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
-  ciu <- ciu.image.new(model, inc_v3_predict_function)
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'lime'))
+  ciu <- ciu.image.new(model, inc_v3_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=n_superpixels,
                                       weight=20, n_iter=10, background = 'grey')
@@ -321,8 +326,8 @@ ciu_DuckHorse_InceptionV3 <- function(ind.out=1, threshold = 0.02, n_superpixels
   imgpath <- 'HalfDuckHalfHorse_cropped.jpg'
   res <- predict(model, image_prep_inception_v3(imgpath))
   imagenet_decode_predictions(res)
-  #model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
-  ciu <- ciu.image.new(model, inc_v3_predict_function)
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
+  ciu <- ciu.image.new(model, inc_v3_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=n_superpixels,
                                       weight=20, n_iter=10, background = 'grey')
@@ -339,18 +344,24 @@ inc_v3_predict_function <- function(model, imgpath) {
   predict(model, image_prep_inception_v3(imgpath))
 }
 
-ciu_gastro <- function(imgpath, ind.out=1, threshold = 0.02, n_superpixels=50) {
+gastro_predict_function <- function(model, imgpath) {
+  predict(model, gastro.image_prep(imgpath))
+}
+
+ciu_gastro <- function(imgpath, ind.out=c(1,2), threshold = 0.02, n_superpixels=50) {
   # Get model if not initialized already
-  if ( !exists("gastromodel") || is.null(gastromodel) )
-    gastromodel <<- load_model_hdf5("~/Documents/Software/GastroImages/modelCNN/model_full.h5")
+  if ( !exists("gastromodel") || is.null(gastromodel) ) {
+    #gastromodel <<- load_model_hdf5("~/Documents/Software/GastroImages/model_full_v24.h5")
+    gastromodel <<- load_model_hdf5("~/Documents/Software/GastroImages/model_full_categorical.h5")
+  }
   # Create CIU object and get explanation.
-  ciu <- ciu.image.new(gastromodel)
+  ciu <- ciu.image.new(gastromodel, gastro_predict_function, output.names = c("Not Bleeding", "Bleeding"))
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
-                                      show_negative = FALSE, n_superpixels=50,
+                                      show_negative = FALSE, n_superpixels=n_superpixels,
                                       weight=20, n_iter=10, background = 'grey')
   for ( i in 1:length(plist) )
     print(plist[[i]])
-  res <- predict(gastromodel, image_prep(imgpath))
+  res <- gastro_predict_function(gastromodel, imgpath)
 }
 
 lime_kitten <- function() {
@@ -467,6 +478,20 @@ lime_DuckHorse_InceptionV3 <- function() {
   p <- plot_image_explanation(explanation, display = 'block', threshold = 0.01); print(p)
 }
 
+lime_gastro <- function(imgpath, threshold = 0.02, n_superpixels=50) {
+  # Get model if not initialized already
+  if ( !exists("gastromodel") || is.null(gastromodel) ) {
+    #gastromodel <<- load_model_hdf5("~/Documents/Software/GastroImages/model_full_v24.h5")
+    gastromodel <<- load_model_hdf5("~/Documents/Software/GastroImages/model_full_categorical.h5")
+  }
+  explainer <- lime(imgpath, as_classifier(gastromodel, c("Not Bleeding", "Bleeding")), gastro.image_prep)
+  explanation <- explain(imgpath, explainer, n_labels = 2, n_features = n_superpixels, n_superpixels = n_superpixels) # This takes something like 15 minutes!
+  explanation <- as.data.frame(explanation)
+  p <- plot_image_explanation(explanation, display = 'block', threshold = threshold); print(p)
+}
+
+#lime_gastro("~/Documents/Software/GastroImages/dataset/Set 1/A/Set1_1.png")
+
 LabradorGuitarVgg16 <- function() {
   fname <- 'LabradorPlayingGuitar.jpg'
   img <- image_read(fname)
@@ -542,7 +567,7 @@ test.gastroimages <- function() {
   require(keras)
   require(magick)
   require(lime)
-  model <- load_model_hdf5("~/Documents/Software/GastroImages/model_full.h5")
+  model <- load_model_hdf5("~/Documents/Software/GastroImages/model_full_v24.h5")
   predict(model, gastro.image_prep("dataset/Set 1/A/Set1_1.png"))
   plot_superpixels("dataset/Set 1/A/Set1_1.png")
   #img1_1 <- image_read("dataset/Set 1/A/Set1_1.png")

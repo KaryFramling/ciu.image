@@ -2,6 +2,7 @@
 #'
 #' @param model blabla
 #' @param predict.function blabla
+#' @param output.names blabla
 #'
 #' @return blabla
 #' @export
@@ -11,9 +12,10 @@
 #' image_to_array array_reshape imagenet_preprocess_input
 #' @importFrom lime slic
 #' @importFrom magick image_ggplot
-ciu.image.new <- function(model, predict.function=NULL) {
+ciu.image.new <- function(model, predict.function=NULL, output.names=NULL) {
 
   o.model <- model
+  o.outputnames <- output.names
   o.absminmax <- matrix(c(0,1), ncol=2, byrow=TRUE)
   o.super_pixels <- NULL
   o.last.ciu <- NULL
@@ -34,34 +36,74 @@ ciu.image.new <- function(model, predict.function=NULL) {
     check.superpixels(imgpath, n_superpixels, weight, n_iter)
 
     # Original
-    res <- o.predict.function(o.model, imgpath)
-    #res <- predict(o.model, image_prep(imgpath))
-    origpreds <- imagenet_decode_predictions(res, top=length(res))
+    cu.val <- as.vector(o.predict.function(o.model, imgpath))
 
     # Perturbed image.
     tmp <- make.superpixels.transparent(o.image, ind.inputs.to.explain, o.super_pixels, background)
     #res <- predict(model, image_prep(tmp))
-    res <- o.predict.function(o.model, tmp)
-    pert_preds <- imagenet_decode_predictions(res, top=length(res))
+    pert.val <- as.vector(o.predict.function(o.model, tmp))
 
-    # Merge data frames together using class_name as common denominator
-    joint_preds <- merge(origpreds[[1]],pert_preds[[1]], by="class_name",sort=FALSE)
-
-    # Seems like we have the order that we want but "merge" doesn't guarantee
-    # any order according to documentation. So we do a sort, just in case.
-    joint_preds <- joint_preds[order(joint_preds$score.x,decreasing = TRUE),]
-    cu.val <- joint_preds$score.x
-    pert.val <- joint_preds$score.y
-    minvals <- apply(matrix(c(joint_preds$score.x,joint_preds$score.y),ncol=2),1,min)
-    maxvals <- apply(matrix(c(joint_preds$score.x,joint_preds$score.y),ncol=2),1,max)
+    minvals <- apply(matrix(c(cu.val,pert.val),ncol=2),1,min)
+    maxvals <- apply(matrix(c(cu.val,pert.val),ncol=2),1,max)
     diff <- maxvals - minvals
     CI <- diff # Would normally be "/(o.absminmax[2] - o.absminmax[1])" but no point here for the moment since limited to [0,1] anyways.
     CU <- (cu.val - minvals)/diff
+    is.na(CU) <- 0.5 # If no diff, the zero CI and presumably undefined CU. But we set it to 0.5 for simplicity.
 
     # Finalize the return CIU object
-    o.last.ciu <<- ciu.image.result.new(CI, CU, minvals, maxvals, cu.val, origpreds[[1]]$class_description)
+    #o.last.ciu <<- ciu.image.result.new(CI, CU, minvals, maxvals, cu.val, origpreds[[1]]$class_description)
+    o.last.ciu <<- ciu.image.result.new(CI, CU, minvals, maxvals, cu.val, o.outputnames)
+    # Sort according to output value
+    o.last.ciu <<- o.last.ciu[order(cu.val, decreasing=TRUE),]
     return(o.last.ciu)
   }
+
+  # explain <- function(imgpath, ind.inputs.to.explain=c(1), in.min.max.limits=NULL,
+  #                     n.samples=100, n_superpixels=50, weight=20, n_iter=10,
+  #                     background = 'grey',
+  #                     target.concept=NULL, target.ciu=NULL) {
+  #
+  #   # Verify that we have image and superpixels
+  #   check.superpixels(imgpath, n_superpixels, weight, n_iter)
+  #
+  #   # Original
+  #   origres <- o.predict.function(o.model, imgpath)
+  #
+  #   # Perturbed image.
+  #   tmp <- make.superpixels.transparent(o.image, ind.inputs.to.explain, o.super_pixels, background)
+  #   #res <- predict(model, image_prep(tmp))
+  #   pertres <- o.predict.function(o.model, tmp)
+  #
+  #   # Special treatment for imagenet_decode_predictions here. Not sure if it's
+  #   # the best way but will have to do for the moment.
+  #   #    if ( inherits(o.model, "keras.engine.training.Model" )) {
+  #   if ( ncol(origres) == 1000 ) {
+  #     origpreds <- imagenet_decode_predictions(origres, top=length(origres))
+  #     pert_preds <- imagenet_decode_predictions(pertres, top=length(pertres))
+  #
+  #     # Merge data frames together using class_name as common denominator
+  #     joint_preds <- merge(origpreds[[1]],pert_preds[[1]], by="class_name",sort=FALSE)
+  #
+  #     # Seems like we have the order that we want but "merge" doesn't guarantee
+  #     # any order according to documentation. So we do a sort, just in case.
+  #     joint_preds <- joint_preds[order(joint_preds$score.x,decreasing = TRUE),]
+  #     cu.val <- joint_preds$score.x
+  #     pert.val <- joint_preds$score.y
+  #   }
+  #   else {
+  #     cu.val <- origres
+  #     pert.val <- pertres
+  #   }
+  #   minvals <- apply(matrix(c(cu.val,pert.val),ncol=2),1,min)
+  #   maxvals <- apply(matrix(c(cu.val,pert.val),ncol=2),1,max)
+  #   diff <- maxvals - minvals
+  #   CI <- diff # Would normally be "/(o.absminmax[2] - o.absminmax[1])" but no point here for the moment since limited to [0,1] anyways.
+  #   CU <- (cu.val - minvals)/diff
+  #
+  #   # Finalize the return CIU object
+  #   o.last.ciu <<- ciu.image.result.new(CI, CU, minvals, maxvals, cu.val, origpreds[[1]]$class_description)
+  #   return(o.last.ciu)
+  # }
 
   # Get CIU for all superpixels
   ciu.superpixels <- function(imgpath, ind.outputs=1, n_superpixels=50,
@@ -92,14 +134,6 @@ ciu.image.new <- function(model, predict.function=NULL) {
 
     # Get CIU for all superpixels
     ciu.sp <- ciu.superpixels(imgpath, ind.outputs=ind.outputs)
-    # CIs <- CUs <- c()
-    # for ( i in 1:max(o.super_pixels) ) {
-    #   ciu <- explain(imgpath, ind.inputs.to.explain=c(i),
-    #                  n_superpixels=n_superpixels, weight=weight,
-    #                  n_iter=n_iter, background=background)
-    #   CIs <- c(CIs, ciu[ind.output,]$CI)
-    #   CUs <- c(CUs, ciu[ind.output,]$CU)
-    # }
 
     # One plot per output to explain
     plist <- list()
