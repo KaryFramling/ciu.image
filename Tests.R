@@ -268,7 +268,7 @@ ciu_image <- function(imgpath, ind.out=1, threshold = 0.02, n_superpixels=50) {
       include_top = TRUE
     )
   # Create CIU object and get explanation.
-  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'lime'))
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
   ciu <- ciu.image.new(vgg16, vgg_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=50,
@@ -281,7 +281,7 @@ ciu_image <- function(imgpath, ind.out=1, threshold = 0.02, n_superpixels=50) {
 
 ciu_LabradorGuitar <- function() {
   img_path <- 'LabradorPlayingGuitar_cropped.jpg'
-  ciu_vgg19(img_path, c(1,2,3,4,5), threshold = 0.02)
+  ciu_vgg19(img_path, c(1,2,3,4,5), threshold = 0.2)
 }
 
 ciu_vgg19 <- function(imgpath, ind.out=1, threshold = 0.02) {
@@ -292,7 +292,7 @@ ciu_vgg19 <- function(imgpath, ind.out=1, threshold = 0.02) {
       include_top = TRUE
     )
   # Create CIU object and get explanation.
-  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'lime'))
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
   ciu <- ciu.image.new(vgg19, vgg_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=50,
@@ -310,7 +310,7 @@ ciu_DogGuitar_InceptionV3 <- function(ind.out=1, threshold = 0.02, n_superpixels
   imgpath <- 'LabradorPlayingGuitar_cropped.jpg'
   res <- predict(model, image_prep_inception_v3(imgpath))
   imagenet_decode_predictions(res)
-  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'lime'))
+  model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
   ciu <- ciu.image.new(model, inc_v3_predict_function, output.names = model_labels)
   plist <- ciu$plot.image.explanation(imgpath, ind.output = ind.out, threshold = threshold,
                                       show_negative = FALSE, n_superpixels=n_superpixels,
