@@ -4,15 +4,18 @@
 \alias{ciu.image.new}
 \title{ciu.image.new}
 \usage{
-ciu.image.new(model, predict.function = NULL)
+ciu.image.new(model, predict.function = NULL, output.names = NULL)
 }
 \arguments{
-\item{model}{blabla}
+\item{model}{The image recognitioning / classification model.}
 
-\item{predict.function}{blabla}
+\item{predict.function}{Function to call with image(s) as input and that produces
+corresponding classification/output value \link{data.frame}.}
+
+\item{output.names}{Names of the classes that the outputs correspond to.}
 }
 \value{
-blabla
+A \code{ciu.image} object, whose methods can be called using \code{$} specifier.
 }
 \description{
 ciu.image.new
