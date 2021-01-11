@@ -2,26 +2,27 @@
 % Please edit documentation in R/ciu.image.result.R
 \name{ciu.image.result.new}
 \alias{ciu.image.result.new}
-\title{ciu.image.result.new}
+\title{Create \code{ciu.image.result} object.}
 \usage{
 ciu.image.result.new(ci, cu, cmin, cmax, outval, out.names)
 }
 \arguments{
-\item{ci}{blabla}
+\item{ci}{CI values.}
 
-\item{cu}{blabla}
+\item{cu}{CU values.}
 
-\item{cmin}{blabla}
+\item{cmin}{Cmin values.}
 
-\item{cmax}{blabla}
+\item{cmax}{Cmax values.}
 
-\item{outval}{blabla}
+\item{outval}{Output values.}
 
-\item{out.names}{blabla}
+\item{out.names}{Output names.}
 }
 \value{
 blabla
 }
 \description{
-ciu.image.result.new
+A \code{ciu.image.result} object is a \link{data.frame} with columns that correspond
+to the passed parameters. There is one value/row per output.
 }

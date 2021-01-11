@@ -1,11 +1,32 @@
-#' ciu.image.new
+#' Create `ciu.image` object
+#'
+#' Implementation of Contextual Importance and Utility (CIU) method for image
+#' recognition.
+#' `ciu.image` uses "R6-like" object orientation, whose methods can be called using
+#' `$method` notation.
 #'
 #' @param model The image recognitioning / classification model.
 #' @param predict.function Function to call with image(s) as input and that produces
 #' corresponding classification/output value [data.frame].
 #' @param output.names Names of the classes that the outputs correspond to.
 #'
-#' @return A `ciu.image` object, whose methods can be called using `$` specifier.
+#' @return A `ciu.image` object.
+#' @details ciu.image is implemented in an object-oriented manner, where a `ciu.image`
+#' object is a \code{\link{list}} whose methods are made visible as
+#' elements of the list. The general way for using `ciu.image` objects is to
+#' first get a `ciu.image` object by calling \code{\link{ciu.image.new}} as e.g.
+#' \code{ciu <- ciu.image.new(...)}, then call \code{ciu.res <- ciu$<method>(...)}.
+#' The methods that can be used in `<method>` are:
+#' - \code{\link{explain}}
+#' - \code{\link{ciu.superpixels}}
+#' - \code{\link{plot.image.explanation}}
+#' - \code{get.super_pixels}: Get superpixels for current image, if they have
+#' been created by calling one of the methods above.
+#' - \code{reset.superpixels}: Force re-creation of superpixels. Useful for
+#' instance when testing different numbers of superpixels for same image.
+#' - \code{get.last.superpixel.ciu}: Get result of last call to
+#' \code{\link{ciu.superpixels}}, which is also called e.g. by
+#' \code{\link{plot.image.explanation}}.
 #' @export
 #' @import ggplot2
 #' @importFrom stats predict
@@ -13,6 +34,45 @@
 #' image_to_array array_reshape imagenet_preprocess_input
 #' @importFrom lime slic
 #' @importFrom magick image_ggplot
+#' @author Kary Främling
+#' @examples
+#' \dontrun{
+#' library(keras)
+#' library(lime)
+#' library(magick)
+#' library(ciu.image)
+#' imgpath <- system.file('extdata', 'kitten.jpg', package = 'ciu.image')
+#' # load VGG16 image classifier trained on imagenet database
+#' model <- application_vgg16(
+#'   weights = "imagenet",
+#'   include_top = TRUE
+#' )
+#' # We have to tell how images are prepared and evaluated.
+#' vgg_predict_function <- function(model, imgpath) {
+#'   predict(model, image_prep(imgpath))
+#' }
+#' # Standard preparation for imagenet, VGG16
+#' image_prep <- function(x) {
+#'   arrays <- lapply(x, function(path) {
+#'     img <- image_load(path, target_size = c(224,224))
+#'     x <- image_to_array(img)
+#'     x <- array_reshape(x, c(1, dim(x)))
+#'     x <- imagenet_preprocess_input(x)
+#'   })
+#'   do.call(abind::abind, c(arrays, list(along = 1)))
+#' }
+#' model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
+#' ciu <- ciu.image.new(model, vgg_predict_function, output.names = model_labels)
+#' # Default parameters produce "something", use `threshold` parameter for adjusting if needed.
+#' # We get explanation for three topmost classes.
+#' plist <- ciu$plot.image.explanation(imgpath, c(1,2,3))
+#' # plot.image.explanation can be used for more than one outputs so it returns a list.
+#' for ( i in 1:3 ) print(plist[[i]])
+#' # The actual CIU calculation is done by method ciu.superpixels, which returns
+#' # a ciu.image.result object. This call gets all CIU values for the three
+#' # topmost classes and all superpixels.
+#' ciu$ciu.superpixels(imgpath, c(1,2,3))
+#' }
 ciu.image.new <- function(model, predict.function=NULL, output.names=NULL) {
 
   o.model <- model
@@ -213,13 +273,13 @@ ciu.image.new <- function(model, predict.function=NULL, output.names=NULL) {
     return(super_pixels)
   }
 
-  # # Make transparent the given superpixel(s) and write to temporary file.
-  # getfile.superpixels.transparent <- function(img, sp.ind, super_pixels, background) {
-  #   im_perm <- make.superpixels.transparent(img, sp.ind, super_pixels, background)
-  #   tmp <- tempfile()
-  #   magick::image_write(im_perm, path = tmp, format = 'png')
-  #   return(tmp)
-  # }
+  # Make transparent the given superpixel(s) and write to temporary file.
+  getfile.superpixels.transparent <- function(img, sp.ind, super_pixels, background) {
+    im_perm <- make.superpixels.transparent(img, sp.ind, super_pixels, background)
+    tmp <- tempfile()
+    magick::image_write(im_perm, path = tmp, format = 'png')
+    return(tmp)
+  }
 
   # Make transparent the given superpixel(s).
   make.superpixels.transparent <- function(img, sp.ind, super_pixels, background) {

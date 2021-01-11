@@ -2,7 +2,7 @@
 % Please edit documentation in R/ciu.image.R
 \name{ciu.image.new}
 \alias{ciu.image.new}
-\title{ciu.image.new}
+\title{Create \code{ciu.image} object}
 \usage{
 ciu.image.new(model, predict.function = NULL, output.names = NULL)
 }
@@ -15,8 +15,73 @@ corresponding classification/output value \link{data.frame}.}
 \item{output.names}{Names of the classes that the outputs correspond to.}
 }
 \value{
-A \code{ciu.image} object, whose methods can be called using \code{$} specifier.
+A \code{ciu.image} object.
 }
 \description{
-ciu.image.new
+Implementation of Contextual Importance and Utility (CIU) method for image
+recognition.
+\code{ciu.image} uses "R6-like" object orientation, whose methods can be called using
+\verb{$method} notation.
+}
+\details{
+ciu.image is implemented in an object-oriented manner, where a \code{ciu.image}
+object is a \code{\link{list}} whose methods are made visible as
+elements of the list. The general way for using \code{ciu.image} objects is to
+first get a \code{ciu.image} object by calling \code{\link{ciu.image.new}} as e.g.
+\code{ciu <- ciu.image.new(...)}, then call \code{ciu.res <- ciu$<method>(...)}.
+The methods that can be used in \verb{<method>} are:
+\itemize{
+\item \code{\link{explain}}
+\item \code{\link{ciu.superpixels}}
+\item \code{\link{plot.image.explanation}}
+\item \code{get.super_pixels}: Get superpixels for current image, if they have
+been created by calling one of the methods above.
+\item \code{reset.superpixels}: Force re-creation of superpixels. Useful for
+instance when testing different numbers of superpixels for same image.
+\item \code{get.last.superpixel.ciu}: Get result of last call to
+\code{\link{ciu.superpixels}}, which is also called e.g. by
+\code{\link{plot.image.explanation}}.
+}
+}
+\examples{
+\dontrun{
+library(keras)
+library(lime)
+library(magick)
+library(ciu.image)
+imgpath <- system.file('extdata', 'kitten.jpg', package = 'ciu.image')
+# load VGG16 image classifier trained on imagenet database
+model <- application_vgg16(
+  weights = "imagenet",
+  include_top = TRUE
+)
+# We have to tell how images are prepared and evaluated.
+vgg_predict_function <- function(model, imgpath) {
+  predict(model, image_prep(imgpath))
+}
+# Standard preparation for imagenet, VGG16
+image_prep <- function(x) {
+  arrays <- lapply(x, function(path) {
+    img <- image_load(path, target_size = c(224,224))
+    x <- image_to_array(img)
+    x <- array_reshape(x, c(1, dim(x)))
+    x <- imagenet_preprocess_input(x)
+  })
+  do.call(abind::abind, c(arrays, list(along = 1)))
+}
+model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package = 'ciu.image'))
+ciu <- ciu.image.new(model, vgg_predict_function, output.names = model_labels)
+# Default parameters produce "something", use `threshold` parameter for adjusting if needed.
+# We get explanation for three topmost classes.
+plist <- ciu$plot.image.explanation(imgpath, c(1,2,3))
+# plot.image.explanation can be used for more than one outputs so it returns a list.
+for ( i in 1:3 ) print(plist[[i]])
+# The actual CIU calculation is done by method ciu.superpixels, which returns
+# a ciu.image.result object. This call gets all CIU values for the three
+# topmost classes and all superpixels.
+ciu$ciu.superpixels(imgpath, c(1,2,3))
+}
+}
+\author{
+Kary Främling
 }

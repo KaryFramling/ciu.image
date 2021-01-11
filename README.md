@@ -46,9 +46,9 @@ model <- application_vgg16(
     include_top = TRUE
   )
 model_labels <- readRDS(system.file('extdata', 'imagenet_labels.rds', package='ciu.image'))
-imgpath <- 'kitten.jpg'
+imgpath <- system.file('extdata', 'kitten.jpg', package = 'ciu.image')
 ciu <- ciu.image.new(model, vgg_predict_function, output.names = model_labels)
-plist <- ciu$plot.image.explanation(imgpath, ind.output = c(1,2,3), threshold = 0.02,  n_superpixels=100)
+plist <- ciu$plot.image.explanation(imgpath, ind.output = c(1,2,3))
 for ( i in 1:length(plist) )
   print(plist[[i]])
 

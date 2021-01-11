@@ -1,11 +1,14 @@
-#' ciu.image.result.new
+#' Create `ciu.image.result` object.
 #'
-#' @param ci blabla
-#' @param cu blabla
-#' @param cmin blabla
-#' @param cmax blabla
-#' @param outval blabla
-#' @param out.names blabla
+#' A `ciu.image.result` object is a [data.frame] with columns that correspond
+#' to the passed parameters. There is one value/row per output.
+#'
+#' @param ci CI values.
+#' @param cu CU values.
+#' @param cmin Cmin values.
+#' @param cmax Cmax values.
+#' @param outval Output values.
+#' @param out.names Output names.
 #'
 #' @return blabla
 #' @export
