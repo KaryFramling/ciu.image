@@ -89,16 +89,40 @@ ciu.image.new <- function(model, predict.function=NULL, output.names=NULL) {
   #   if ( is.null(o.predict.function) ) {
   # }
 
+  # Estimate CIU for one superpixel/input.
+  #
+  # @param imgpath
+  # @param ind.inputs.to.explain
+  # @param in.min.max.limits
+  # @param n.samples
+  # @param n_superpixels
+  # @param weight
+  # @param n_iter
+  # @param background
+  # @param target.concept
+  # @param target.ciu
+  # @param img.cu.val Provide values returned by earlier call to "predict" for
+  #   this image and superpixels. For instance, avoids doing a new forward pass
+  #   for current image when "explain" is called for superpixels of same image
+  #   one after the other.
+  #
+  # @return
+  # @export
+  #
+  # @examples
   explain <- function(imgpath, ind.inputs.to.explain=c(1), in.min.max.limits=NULL,
                       n.samples=100, n_superpixels=50, weight=20, n_iter=10,
                       background = 'grey',
-                      target.concept=NULL, target.ciu=NULL) {
+                      target.concept=NULL, target.ciu=NULL,
+                      img.cu.val=NULL) {
 
     # Verify that we have image and superpixels
     check.superpixels(imgpath, n_superpixels, weight, n_iter)
 
     # Original
-    cu.val <- as.vector(o.predict.function(o.model, imgpath))
+    cu.val <- img.cu.val
+    if ( is.null(cu.val) )
+      cu.val <- as.vector(o.predict.function(o.model, imgpath))
 
     # Perturbed image.
     tmp <- getfile.superpixels.transparent(o.image, ind.inputs.to.explain, o.super_pixels, background)
@@ -129,6 +153,7 @@ ciu.image.new <- function(model, predict.function=NULL, output.names=NULL) {
                               strategy = "straight") {
     # Verify that we have image and superpixels
     check.superpixels(imgpath, n_superpixels, weight, n_iter)
+    cu.val <- as.vector(o.predict.function(o.model, imgpath))
     n.spixels <- max(o.super_pixels)
     all.sp <- seq(1,n.spixels)
     CIs <- CUs <- cmins <- cmaxs <- matrix(0, nrow=length(ind.outputs), ncol=n.spixels)
@@ -139,7 +164,7 @@ ciu.image.new <- function(model, predict.function=NULL, output.names=NULL) {
         inps <- c(i)
       ciu <- explain(imgpath, ind.inputs.to.explain=inps,
                      n_superpixels=n_superpixels, weight=weight,
-                     n_iter=n_iter, background=background)
+                     n_iter=n_iter, background=background, img.cu.val=cu.val)
       CIs[,i] <- ciu[ind.outputs,]$CI
       CUs[,i] <- ciu[ind.outputs,]$CU
       cmins[,i] <- ciu[ind.outputs,]$cmin
